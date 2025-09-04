@@ -1,7 +1,7 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/app/lib/context/auth-context";
 import { Button } from "@/components/ui/button";
 import { deletePoll } from "@/app/lib/actions/poll-actions";
 
@@ -17,11 +17,22 @@ interface PollActionsProps {
 }
 
 export default function PollActions({ poll }: PollActionsProps) {
-  const { user } = useAuth();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const handleDelete = async () => {
     if (confirm("Are you sure you want to delete this poll?")) {
-      await deletePoll(poll.id);
-      window.location.reload();
+      setIsDeleting(true);
+      setError(null);
+      
+      const result = await deletePoll(poll.id);
+      
+      if (result.ok) {
+        window.location.reload();
+      } else {
+        setError(result.error || "Failed to delete poll");
+        setIsDeleting(false);
+      }
     }
   };
 
@@ -39,14 +50,22 @@ export default function PollActions({ poll }: PollActionsProps) {
           </div>
         </div>
       </Link>
-      {user && user.id === poll.user_id && (
-        <div className="flex gap-2 p-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/polls/${poll.id}/edit`}>Edit</Link>
-          </Button>
-          <Button variant="destructive" size="sm" onClick={handleDelete}>
-            Delete
-          </Button>
+      <div className="flex gap-2 p-2">
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/polls/${poll.id}/edit`}>Edit</Link>
+        </Button>
+        <Button 
+          variant="destructive" 
+          size="sm" 
+          onClick={handleDelete}
+          disabled={isDeleting}
+        >
+          {isDeleting ? "Deleting..." : "Delete"}
+        </Button>
+      </div>
+      {error && (
+        <div className="px-2 pb-2 text-sm text-red-600">
+          {error}
         </div>
       )}
     </div>

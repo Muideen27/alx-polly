@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { LoginFormData, RegisterFormData } from '../types';
+import { getFriendlyErrorMessage } from '@/lib/error-handling';
 
 export async function login(data: LoginFormData) {
   const supabase = await createClient();
@@ -12,7 +13,7 @@ export async function login(data: LoginFormData) {
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: getFriendlyErrorMessage(error) };
   }
 
   // Success: no error
@@ -33,7 +34,7 @@ export async function register(data: RegisterFormData) {
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: getFriendlyErrorMessage(error) };
   }
 
   // Success: no error
@@ -44,7 +45,7 @@ export async function logout() {
   const supabase = await createClient();
   const { error } = await supabase.auth.signOut();
   if (error) {
-    return { error: error.message };
+    return { error: getFriendlyErrorMessage(error) };
   }
   return { error: null };
 }

@@ -1,47 +1,46 @@
-'use client';
-
-import { useState } from 'react';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { createClient } from '@/lib/supabase/server';
 
-// Mock data for a single poll
-const mockPoll = {
-  id: '1',
-  title: 'Favorite Programming Language',
-  description: 'What programming language do you prefer to use?',
-  options: [
-    { id: '1', text: 'JavaScript', votes: 15 },
-    { id: '2', text: 'Python', votes: 12 },
-    { id: '3', text: 'Java', votes: 8 },
-    { id: '4', text: 'C#', votes: 5 },
-    { id: '5', text: 'Go', votes: 2 },
-  ],
-  totalVotes: 42,
-  createdAt: '2023-10-15',
-  createdBy: 'John Doe',
-};
+export default async function PollDetailPage({ params }: { params: { id: string } }) {
+  const supabase = await createClient();
+  
+  // Get current user
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  
+  if (userError || !user) {
+    notFound();
+  }
 
-export default function PollDetailPage({ params }: { params: { id: string } }) {
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [hasVoted, setHasVoted] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Fetch poll with ownership check
+  const { data: poll, error: pollError } = await supabase
+    .from('polls')
+    .select('*')
+    .eq('id', params.id)
+    .eq('owner', user.id)
+    .single();
 
-  // In a real app, you would fetch the poll data based on the ID
-  const poll = mockPoll;
-  const totalVotes = poll.options.reduce((sum, option) => sum + option.votes, 0);
+  if (pollError || !poll) {
+    notFound();
+  }
 
-  const handleVote = () => {
-    if (!selectedOption) return;
-    
-    setIsSubmitting(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setHasVoted(true);
-      setIsSubmitting(false);
-    }, 1000);
-  };
+  // Fetch vote counts for each option
+  const { data: votes } = await supabase
+    .from('votes')
+    .select('option_index')
+    .eq('poll_id', params.id);
+
+  // Count votes per option
+  const voteCounts = (poll.options as string[]).map((_, index) => 
+    votes?.filter(vote => vote.option_index === index).length || 0
+  );
+
+  const totalVotes = voteCounts.reduce((sum, count) => sum + count, 0);
 
   const getPercentage = (votes: number) => {
     if (totalVotes === 0) return 0;
@@ -66,55 +65,34 @@ export default function PollDetailPage({ params }: { params: { id: string } }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">{poll.title}</CardTitle>
-          <CardDescription>{poll.description}</CardDescription>
+          <CardTitle className="text-2xl">{poll.question}</CardTitle>
+          <CardDescription>Poll created on {new Date(poll.created_at).toLocaleDateString()}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!hasVoted ? (
-            <div className="space-y-3">
-              {poll.options.map((option) => (
-                <div 
-                  key={option.id} 
-                  className={`p-3 border rounded-md cursor-pointer transition-colors ${selectedOption === option.id ? 'border-blue-500 bg-blue-50' : 'hover:bg-slate-50'}`}
-                  onClick={() => setSelectedOption(option.id)}
-                >
-                  {option.text}
+          <div className="space-y-4">
+            <h3 className="font-medium">Results:</h3>
+            {(poll.options as string[]).map((option, index) => (
+              <div key={index} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span>{option}</span>
+                  <span>{getPercentage(voteCounts[index])}% ({voteCounts[index]} votes)</span>
                 </div>
-              ))}
-              <Button 
-                onClick={handleVote} 
-                disabled={!selectedOption || isSubmitting} 
-                className="mt-4"
-              >
-                {isSubmitting ? 'Submitting...' : 'Submit Vote'}
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <h3 className="font-medium">Results:</h3>
-              {poll.options.map((option) => (
-                <div key={option.id} className="space-y-1">
-                  <div className="flex justify-between text-sm">
-                    <span>{option.text}</span>
-                    <span>{getPercentage(option.votes)}% ({option.votes} votes)</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2.5">
-                    <div 
-                      className="bg-blue-600 h-2.5 rounded-full" 
-                      style={{ width: `${getPercentage(option.votes)}%` }}
-                    ></div>
-                  </div>
+                <div className="w-full bg-slate-100 rounded-full h-2.5">
+                  <div 
+                    className="bg-blue-600 h-2.5 rounded-full" 
+                    style={{ width: `${getPercentage(voteCounts[index])}%` }}
+                  ></div>
                 </div>
-              ))}
-              <div className="text-sm text-slate-500 pt-2">
-                Total votes: {totalVotes}
               </div>
+            ))}
+            <div className="text-sm text-slate-500 pt-2">
+              Total votes: {totalVotes}
             </div>
-          )}
+          </div>
         </CardContent>
         <CardFooter className="text-sm text-slate-500 flex justify-between">
-          <span>Created by {poll.createdBy}</span>
-          <span>Created on {new Date(poll.createdAt).toLocaleDateString()}</span>
+          <span>Created by you</span>
+          <span>Created on {new Date(poll.created_at).toLocaleDateString()}</span>
         </CardFooter>
       </Card>
 
