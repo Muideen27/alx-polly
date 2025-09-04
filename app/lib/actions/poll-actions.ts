@@ -46,7 +46,7 @@ const updatePollSchema = z.object({
 // CREATE POLL
 export async function createPoll(formData: FormData) {
   // Rate limiting
-  const rateLimitResult = rateLimitCheck('createPoll');
+  const rateLimitResult = await rateLimitCheck('createPoll');
   if (!rateLimitResult.ok) {
     return rateLimitResult;
   }
@@ -81,7 +81,6 @@ export async function createPoll(formData: FormData) {
   const { error } = await supabase.from("polls").insert([
     {
       user_id: user.id,
-      owner: user.id,
       question: validatedQuestion,
       options: validatedOptions,
     },
@@ -131,7 +130,7 @@ export async function getPollById(id: string) {
     .from("polls")
     .select("*")
     .eq("id", id)
-    .eq("owner", user.id)
+    .eq("user_id", user.id)
     .single();
 
   if (error) return { poll: null, error: getFriendlyErrorMessage(error) };
@@ -141,7 +140,7 @@ export async function getPollById(id: string) {
 // SUBMIT VOTE
 export async function submitVote(pollId: string, optionIndex: number, voteSignature?: string) {
   // Rate limiting
-  const rateLimitResult = rateLimitCheck('submitVote');
+  const rateLimitResult = await rateLimitCheck('submitVote');
   if (!rateLimitResult.ok) {
     return rateLimitResult;
   }
@@ -197,7 +196,7 @@ export async function submitVote(pollId: string, optionIndex: number, voteSignat
 // DELETE POLL
 export async function deletePoll(id: string) {
   // Rate limiting
-  const rateLimitResult = rateLimitCheck('deletePoll');
+  const rateLimitResult = await rateLimitCheck('deletePoll');
   if (!rateLimitResult.ok) {
     return rateLimitResult;
   }
@@ -220,7 +219,7 @@ export async function deletePoll(id: string) {
     .from("polls")
     .delete()
     .eq("id", id)
-    .eq("owner", user.id)
+    .eq("user_id", user.id)
     .select();
 
   if (error) {
@@ -238,7 +237,7 @@ export async function deletePoll(id: string) {
 // UPDATE POLL
 export async function updatePoll(pollId: string, formData: FormData) {
   // Rate limiting
-  const rateLimitResult = rateLimitCheck('updatePoll');
+  const rateLimitResult = await rateLimitCheck('updatePoll');
   if (!rateLimitResult.ok) {
     return rateLimitResult;
   }
@@ -275,7 +274,7 @@ export async function updatePoll(pollId: string, formData: FormData) {
     .from("polls")
     .update({ question: validatedQuestion, options: validatedOptions })
     .eq("id", pollId)
-    .eq("owner", user.id)
+    .eq("user_id", user.id)
     .select();
 
   if (error) {

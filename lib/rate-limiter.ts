@@ -18,8 +18,8 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-export function getClientIP(): string {
-  const headersList = headers();
+export async function getClientIP(): Promise<string> {
+  const headersList = await headers();
   
   // Check various headers for the real IP
   const forwardedFor = headersList.get('x-forwarded-for');
@@ -43,12 +43,12 @@ export function getClientIP(): string {
   return '127.0.0.1';
 }
 
-export function checkRateLimit(
+export async function checkRateLimit(
   action: string,
   windowMs: number = 60000, // 60 seconds
   maxRequests: number = 20
-): { allowed: boolean; remaining: number; resetTime: number } {
-  const clientIP = getClientIP();
+): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
+  const clientIP = await getClientIP();
   const key = `${clientIP}:${action}`;
   const now = Date.now();
   
@@ -89,8 +89,8 @@ export function checkRateLimit(
   };
 }
 
-export function rateLimitCheck(action: string): { ok: boolean; error?: string } {
-  const result = checkRateLimit(action);
+export async function rateLimitCheck(action: string): Promise<{ ok: boolean; error?: string }> {
+  const result = await checkRateLimit(action);
   
   if (!result.allowed) {
     return {
