@@ -1,96 +1,164 @@
 # ALX Polly: A Polling Application
 
-Welcome to ALX Polly, a full-stack polling application built with Next.js, TypeScript, and Supabase. This project serves as a practical learning ground for modern web development concepts, with a special focus on identifying and fixing common security vulnerabilities.
-
-## About the Application
-
-ALX Polly allows authenticated users to create, share, and vote on polls. It's a simple yet powerful application that demonstrates key features of modern web development:
-
--   **Authentication**: Secure user sign-up and login.
--   **Poll Management**: Users can create, view, and delete their own polls.
--   **Voting System**: A straightforward system for casting and viewing votes.
--   **User Dashboard**: A personalized space for users to manage their polls.
-
-The application is built with a modern tech stack:
-
--   **Framework**: [Next.js](https://nextjs.org/) (App Router)
--   **Language**: [TypeScript](https://www.typescriptlang.org/)
--   **Backend & Database**: [Supabase](https://supabase.io/)
--   **UI**: [Tailwind CSS](https://tailwindcss.com/) with [shadcn/ui](https://ui.shadcn.com/)
--   **State Management**: React Server Components and Client Components
-
 ---
 
-## 🚀 The Challenge: Security Audit & Remediation
+## Security Audit & Remediation
 
-As a developer, writing functional code is only half the battle. Ensuring that the code is secure, robust, and free of vulnerabilities is just as critical. This version of ALX Polly has been intentionally built with several security flaws, providing a real-world scenario for you to practice your security auditing skills.
+### Overview & Scope
 
-**Your mission is to act as a security engineer tasked with auditing this codebase.**
+This section documents the comprehensive security audit performed on ALX Polly and the remediation measures implemented. The audit covered authentication, authorization, input validation, data access controls, and client-side security vulnerabilities.
 
-### Your Objectives:
+**Scope:**
+- Server-side authorization and IDOR vulnerabilities
+- Client-side security bypasses
+- Input validation and sanitization
+- Database security and RLS policies
+- HTTP security headers and CSP
+- Vote deduplication and rate limiting
 
-1.  **Identify Vulnerabilities**:
-    -   Thoroughly review the codebase to find security weaknesses.
-    -   Pay close attention to user authentication, data access, and business logic.
-    -   Think about how a malicious actor could misuse the application's features.
+### Security Findings & Fixes
 
-2.  **Understand the Impact**:
-    -   For each vulnerability you find, determine the potential impact.Query your AI assistant about it. What data could be exposed? What unauthorized actions could be performed?
+| Issue | Severity | Impact | Fix Implemented |
+|-------|----------|---------|-----------------|
+| IDOR in deletePoll | CRITICAL | Any user could delete any poll | Added `.eq("owner", user.id)` filter |
+| IDOR in getPollById | HIGH | Users could access any poll data | Added ownership verification |
+| Client-side authorization | HIGH | UI restrictions could be bypassed | Moved all auth to server-side |
+| Mock data in production | HIGH | No real data fetching, security bypass | Replaced with server-side data fetching |
+| No vote deduplication | HIGH | Unlimited voting, poll manipulation | Implemented signature-based deduplication |
+| Missing input validation | MEDIUM | XSS, data corruption | Added Zod schemas with sanitization |
+| No RLS policies | CRITICAL | Direct database access bypass | Configured comprehensive RLS policies |
+| Error message leakage | LOW | Information disclosure | Implemented friendly error mapping |
+| Missing security headers | MEDIUM | XSS, clickjacking | Added CSP, X-Frame-Options, etc. |
+| No rate limiting | MEDIUM | DoS, spam | Implemented per-IP rate limiting |
 
-3.  **Propose and Implement Fixes**:
-    -   Once a vulnerability is identified, ask your AI assistant to fix it.
-    -   Write secure, efficient, and clean code to patch the security holes.
-    -   Ensure that your fixes do not break existing functionality for legitimate users.
+### Implemented Security Changes
 
-### Where to Start?
+#### 1. Authorization Hardening
+- **Server-side ownership checks**: All poll operations now verify `owner = auth.uid()`
+- **Removed client-side auth**: Authorization logic moved entirely to server actions
+- **Consistent error handling**: Standardized `{ ok: boolean; error?: string }` responses
 
-A good security audit involves both static code analysis and dynamic testing. Here’s a suggested approach:
+#### 2. Input Validation & Sanitization
+- **Zod schemas**: Comprehensive validation for poll questions (10-500 chars) and options (2-200 chars, 2-10 options)
+- **Input sanitization**: Strips HTML tags, dangerous protocols, and event handlers
+- **Case-insensitive deduplication**: Prevents duplicate poll options
 
-1.  **Familiarize Yourself with the Code**:
-    -   Start with `app/lib/actions/` to understand how the application interacts with the database.
-    -   Explore the page routes in the `app/(dashboard)/` directory. How is data displayed and managed?
-    -   Look for hidden or undocumented features. Are there any pages not linked in the main UI?
+#### 3. Vote Deduplication System
+- **HMAC-based signatures**: Uses poll ID + user agent + IP for unique vote identification
+- **HttpOnly cookies**: Secure vote signature storage with 30-day expiration
+- **Database constraints**: Unique index on `(poll_id, signature)` prevents duplicate votes
 
-2.  **Use Your AI Assistant**:
-    -   This is an open-book test. You are encouraged to use AI tools to help you.
-    -   Ask your AI assistant to review snippets of code for security issues.
-    -   Describe a feature's behavior to your AI and ask it to identify potential attack vectors.
-    -   When you find a vulnerability, ask your AI for the best way to patch it.
+#### 4. Row Level Security (RLS)
+- **Polls table**: Public read, owner-only write/update/delete
+- **Poll options**: Public read, owner-only management via parent poll ownership
+- **Votes table**: Public insert for active polls, no updates/deletes (append-only)
 
----
+#### 5. Security Headers
+- **Content Security Policy**: Restrictive CSP with safe defaults
+- **X-Frame-Options**: DENY to prevent clickjacking
+- **X-Content-Type-Options**: nosniff to prevent MIME sniffing
+- **Referrer-Policy**: strict-origin-when-cross-origin
+- **Permissions-Policy**: Disabled camera, microphone, geolocation
 
-## Getting Started
+#### 6. Rate Limiting
+- **Per-IP limits**: 20 requests per 60-second window per action
+- **Real IP detection**: Supports X-Forwarded-For, X-Real-IP, CF-Connecting-IP
+- **Automatic cleanup**: Expired entries removed every 5 minutes
 
-To begin your security audit, you'll need to get the application running on your local machine.
+### Database Security Setup
 
-### 1. Prerequisites
+#### Step 1: Apply RLS Policies
+Run the following SQL in your Supabase SQL editor:
 
--   [Node.js](https://nodejs.org/) (v20.x or higher recommended)
--   [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
--   A [Supabase](https://supabase.io/) account (the project is pre-configured, but you may need your own for a clean slate).
+```sql
+-- Enable RLS on all tables
+ALTER TABLE polls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE poll_options ENABLE ROW LEVEL SECURITY;
+ALTER TABLE votes ENABLE ROW LEVEL SECURITY;
 
-### 2. Installation
-
-Clone the repository and install the dependencies:
-
-```bash
-git clone <repository-url>
-cd alx-polly
-npm install
+-- Apply comprehensive policies (see migrations/core_rls_policies.sql)
+-- This includes owner-only access for polls, public read access, and vote restrictions
 ```
 
-### 3. Environment Variables
+#### Step 2: Add Required Columns
+```sql
+-- Add missing columns if they don't exist
+ALTER TABLE votes ADD COLUMN signature VARCHAR(255);
+ALTER TABLE polls ADD COLUMN owner UUID REFERENCES auth.users(id);
+ALTER TABLE polls ADD COLUMN is_active BOOLEAN DEFAULT true;
+```
 
-The project uses Supabase for its backend. An environment file `.env.local` is needed.Use the keys you created during the Supabase setup process.
+#### Step 3: Create Unique Constraints
+```sql
+-- Prevent duplicate votes
+CREATE UNIQUE INDEX idx_votes_poll_signature_unique 
+ON votes (poll_id, signature) 
+WHERE signature IS NOT NULL;
 
-### 4. Running the Development Server
+-- Ensure poll options are unique per poll
+CREATE UNIQUE INDEX idx_poll_options_poll_idx_unique 
+ON poll_options (poll_id, idx);
+```
 
-Start the application in development mode:
+### Local Development Setup
+
+#### Required Environment Variables
+Create a `.env.local` file with:
 
 ```bash
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SECRET_KEY=your_supabase_secret_key
+
+# Vote Signature Security (REQUIRED)
+VOTE_SIGNING_SECRET=your_32_character_random_secret_key_here
+```
+
+#### Generate Vote Signing Secret
+```bash
+# Generate a secure 32-character secret
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+#### Running the Application
+```bash
+# Install dependencies
+npm install
+
+# Apply database migrations
+# Run the SQL from migrations/core_rls_policies.sql in Supabase
+
+# Start development server
 npm run dev
 ```
 
-The application will be available at `http://localhost:3000`.
+### Known Limitations & Future Hardening
 
-Good luck, engineer! This is your chance to step into the shoes of a security professional and make a real impact on the quality and safety of this application. Happy hunting!
+#### Current Limitations
+1. **In-memory rate limiting**: Will reset on server restart (consider Redis for production)
+2. **Single server deployment**: Rate limiting doesn't work across multiple instances
+3. **Basic IP detection**: May not work correctly behind complex proxy setups
+4. **No audit logging**: Vote actions aren't logged for compliance/auditing
+
+#### Recommended Future Hardening
+1. **Persistent rate limiting**: Implement Redis-based rate limiting for production
+2. **Audit logging**: Add comprehensive logging for all user actions
+3. **Advanced fingerprinting**: Implement more sophisticated vote deduplication
+4. **Content Security Policy**: Tighten CSP further by removing 'unsafe-inline' and 'unsafe-eval'
+5. **Database encryption**: Enable Supabase column-level encryption for sensitive data
+6. **API versioning**: Implement proper API versioning for future changes
+7. **Monitoring**: Add security monitoring and alerting for suspicious activities
+8. **Penetration testing**: Regular security testing by third-party experts
+
+#### Production Considerations
+- Use a proper secrets management system (AWS Secrets Manager, Azure Key Vault)
+- Implement proper logging and monitoring (Sentry, DataDog)
+- Set up automated security scanning in CI/CD pipeline
+- Regular dependency updates and vulnerability scanning
+- Consider implementing CAPTCHA for additional bot protection
+- Set up proper backup and disaster recovery procedures
+
+---
+
+**Security Status**: ✅ All critical and high-severity vulnerabilities have been remediated. The application now follows security best practices with proper authorization, input validation, and data protection measures in place.
