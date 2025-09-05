@@ -5,6 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { submitVote } from '@/app/lib/actions/poll-actions';
 
+/**
+ * Props interface for the poll voting component.
+ * 
+ * Defines the structure of poll data and vote counts passed from
+ * the server component. Vote counts are pre-computed server-side
+ * to prevent client manipulation.
+ */
 interface PollVotingComponentProps {
   poll: {
     id: string;
@@ -12,34 +19,85 @@ interface PollVotingComponentProps {
     options: string[];
     created_at: string;
   };
-  voteCounts: number[];
+  voteCounts: number[]; // Pre-computed server-side vote counts per option
   pollId: string;
 }
 
+/**
+ * Client component for poll voting interface and results display.
+ * 
+ * Handles user interaction for voting, displays real-time results with
+ * percentage calculations, and manages vote submission with signature
+ * verification. Implements client-side state management for UI feedback.
+ * 
+ * @param poll - Poll data from server component
+ * @param voteCounts - Pre-computed vote counts per option (server-side)
+ * @param pollId - Poll ID for vote submission
+ * @returns JSX element containing the voting interface
+ * 
+ * @sideEffects
+ * - Calls submitVote server action with vote signature
+ * - Reloads page after successful vote to show updated results
+ * - Reads vote signature from httpOnly cookie
+ * 
+ * @securityConsiderations
+ * - Vote signature required for submission (prevents duplicate votes)
+ * - Server-side vote count computation (prevents client manipulation)
+ * - No client-side vote storage or calculation
+ * - Signature validation on server action
+ */
 export default function PollVotingComponent({ 
   poll, 
   voteCounts, 
   pollId 
 }: PollVotingComponentProps) {
+  // Client-side state for UI interaction
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Calculate total votes from pre-computed counts (server-side data)
   const totalVotes = voteCounts.reduce((sum, count) => sum + count, 0);
 
+  /**
+   * Calculates percentage for a given vote count.
+   * 
+   * Uses server-computed vote counts to prevent client manipulation.
+   * Returns 0% if no votes exist to avoid division by zero.
+   * 
+   * @param votes - Number of votes for a specific option
+   * @returns Rounded percentage (0-100)
+   */
   const getPercentage = (votes: number) => {
     if (totalVotes === 0) return 0;
     return Math.round((votes / totalVotes) * 100);
   };
 
+  /**
+   * Handles vote submission with signature verification.
+   * 
+   * Retrieves vote signature from httpOnly cookie, validates it exists,
+   * and submits vote to server action. Implements client-side error
+   * handling and UI state management.
+   * 
+   * @sideEffects
+   * - Calls submitVote server action
+   * - Reloads page on successful vote to show updated results
+   * - Updates UI state for loading/error feedback
+   * 
+   * @securityConsiderations
+   * - Requires vote signature from httpOnly cookie
+   * - Server action validates signature and enforces deduplication
+   * - No client-side vote storage or validation
+   */
   const handleVote = async () => {
     if (selectedOption === null) return;
     
     setIsSubmitting(true);
     setError(null);
     
-    // Get the vote signature from the cookie
+    // Extract vote signature from httpOnly cookie (set by server)
     const voteSignature = document.cookie
       .split('; ')
       .find(row => row.startsWith(`vote_sig_${pollId}=`))
@@ -51,11 +109,12 @@ export default function PollVotingComponent({
       return;
     }
 
+    // Submit vote with signature for deduplication
     const result = await submitVote(pollId, selectedOption, voteSignature);
     
     if (result.ok) {
       setHasVoted(true);
-      // Refresh the page to show updated results
+      // Refresh page to show updated results (server-side computation)
       window.location.reload();
     } else {
       setError(result.error || 'Failed to submit vote');

@@ -3,7 +3,26 @@ import { Button } from '@/components/ui/button';
 import { getUserPolls } from '@/app/lib/actions/poll-actions';
 import PollActions from './PollActions'; 
 
+/**
+ * Server component that displays the user's polls dashboard.
+ * 
+ * Fetches polls owned by the authenticated user and renders them
+ * in a responsive grid layout. Handles empty state and error display.
+ * All data fetching happens server-side for better performance and SEO.
+ * 
+ * @returns JSX element containing the polls dashboard
+ * 
+ * @sideEffects
+ * - Calls getUserPolls() which queries 'polls' table with user_id filter
+ * - No cache revalidation (read-only operation)
+ * 
+ * @failureModes
+ * - Authentication required: Redirected by middleware
+ * - Database error: Displays error message to user
+ * - No polls found: Shows empty state with call-to-action
+ */
 export default async function PollsPage() {
+  // Server-side data fetching with ownership enforcement
   const { polls, error } = await getUserPolls();
 
   return (
@@ -16,8 +35,10 @@ export default async function PollsPage() {
       </div>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {polls && polls.length > 0 ? (
+          // Render poll cards with actions (edit/delete)
           polls.map((poll) => <PollActions key={poll.id} poll={poll} />)
         ) : (
+          // Empty state for users with no polls
           <div className="flex flex-col items-center justify-center py-12 text-center col-span-full">
             <h2 className="text-xl font-semibold mb-2">No polls yet</h2>
             <p className="text-slate-500 mb-6">Create your first poll to get started</p>
@@ -27,6 +48,7 @@ export default async function PollsPage() {
           </div>
         )}
       </div>
+      {/* Display any errors from data fetching */}
       {error && <div className="text-red-500">{error}</div>}
     </div>
   );
