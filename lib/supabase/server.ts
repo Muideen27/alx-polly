@@ -1,5 +1,25 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+
+/**
+ * Creates a server-side Supabase client with cookie-based session management.
+ * 
+ * Establishes a Supabase client configured for server-side operations with
+ * automatic cookie handling for authentication state persistence. Uses
+ * Next.js cookies API to read and write authentication cookies.
+ * 
+ * @returns Promise resolving to configured Supabase client
+ * 
+ * @sideEffects
+ * - Reads authentication cookies from Next.js request
+ * - May write new cookies for session management
+ * - Establishes server-side authentication context
+ * 
+ * @failureModes
+ * - Missing environment variables: Throws runtime error
+ * - Cookie access errors: Gracefully handled in setAll callback
+ * - Server component context issues: Silently ignored (expected behavior)
+ */
 export async function createClient() {
   const cookieStore = await cookies()
   return createServerClient(
