@@ -1,5 +1,13 @@
 import { logger } from './logger';
 
+interface ErrorWithCode {
+  message?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+  stack?: string;
+}
+
 // Database error codes to friendly messages mapping
 const DB_ERROR_MESSAGES: Record<string, string> = {
   '23505': 'This action has already been completed.',
@@ -55,69 +63,64 @@ const SUPABASE_ERROR_MESSAGES: Record<string, string> = {
   'invalid_webhook_team': 'Invalid webhook team.',
   'invalid_webhook_project': 'Invalid webhook project.',
   'invalid_webhook_workspace': 'Invalid webhook workspace.',
-  'invalid_webhook_environment': 'Invalid webhook environment.',
-  'invalid_webhook_application': 'Invalid webhook application.',
-  'invalid_webhook_organization': 'Invalid webhook organization.',
-  'invalid_webhook_user': 'Invalid webhook user.',
-  'invalid_webhook_team': 'Invalid webhook team.',
-  'invalid_webhook_project': 'Invalid webhook project.',
-  'invalid_webhook_workspace': 'Invalid webhook workspace.',
 };
 
-export function getFriendlyErrorMessage(error: any): string {
+export function getFriendlyErrorMessage(error: unknown): string {
+  const errorWithCode = error as ErrorWithCode;
+  
   // Log the full error for debugging
   logger.error('Database/API Error:', {
-    message: error?.message,
-    code: error?.code,
-    details: error?.details,
-    hint: error?.hint,
-    stack: error?.stack,
+    message: errorWithCode?.message,
+    code: errorWithCode?.code,
+    details: errorWithCode?.details,
+    hint: errorWithCode?.hint,
+    stack: errorWithCode?.stack,
   });
 
   // Check for specific error codes first
-  if (error?.code && DB_ERROR_MESSAGES[error.code]) {
-    return DB_ERROR_MESSAGES[error.code];
+  if (errorWithCode?.code && DB_ERROR_MESSAGES[errorWithCode.code]) {
+    return DB_ERROR_MESSAGES[errorWithCode.code];
   }
 
   // Check for Supabase error messages
-  if (error?.message && SUPABASE_ERROR_MESSAGES[error.message]) {
-    return SUPABASE_ERROR_MESSAGES[error.message];
+  if (errorWithCode?.message && SUPABASE_ERROR_MESSAGES[errorWithCode.message]) {
+    return SUPABASE_ERROR_MESSAGES[errorWithCode.message];
   }
 
   // Check for common error patterns
-  if (error?.message?.includes('duplicate key')) {
+  if (errorWithCode?.message?.includes('duplicate key')) {
     return 'This item already exists.';
   }
 
-  if (error?.message?.includes('foreign key')) {
+  if (errorWithCode?.message?.includes('foreign key')) {
     return 'Referenced item not found.';
   }
 
-  if (error?.message?.includes('permission denied')) {
+  if (errorWithCode?.message?.includes('permission denied')) {
     return 'You do not have permission to perform this action.';
   }
 
-  if (error?.message?.includes('not found')) {
+  if (errorWithCode?.message?.includes('not found')) {
     return 'Requested resource not found.';
   }
 
-  if (error?.message?.includes('unauthorized')) {
+  if (errorWithCode?.message?.includes('unauthorized')) {
     return 'Authentication required.';
   }
 
-  if (error?.message?.includes('forbidden')) {
+  if (errorWithCode?.message?.includes('forbidden')) {
     return 'You do not have permission to perform this action.';
   }
 
-  if (error?.message?.includes('rate limit')) {
+  if (errorWithCode?.message?.includes('rate limit')) {
     return 'Too many requests. Please try again later.';
   }
 
-  if (error?.message?.includes('timeout')) {
+  if (errorWithCode?.message?.includes('timeout')) {
     return 'Request timed out. Please try again.';
   }
 
-  if (error?.message?.includes('network')) {
+  if (errorWithCode?.message?.includes('network')) {
     return 'Network error. Please check your connection and try again.';
   }
 

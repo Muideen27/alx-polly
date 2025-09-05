@@ -9,12 +9,11 @@ import { deletePoll } from "@/app/lib/actions/poll-actions";
  * Poll data interface for the actions component.
  * 
  * Defines the structure of poll data passed from the server component.
- * Uses any[] for options to match the database schema flexibility.
  */
 interface Poll {
   id: string;
   question: string;
-  options: any[];
+  options: string[];
   user_id: string;
 }
 

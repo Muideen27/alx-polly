@@ -1,20 +1,19 @@
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Poll } from '@/app/lib/types';
 
 interface PollCardProps {
   poll: {
     id: string;
     title: string;
     description?: string;
-    options: any[];
+    options: string[];
     votes?: number;
     createdAt: string | Date;
   };
 }
 
 export function PollCard({ poll }: PollCardProps) {
-  const totalVotes = poll.votes || poll.options.reduce((sum, option) => sum + (option.votes || 0), 0);
+  const totalVotes = poll.votes || 0;
   const formattedDate = typeof poll.createdAt === 'string' 
     ? new Date(poll.createdAt).toLocaleDateString() 
     : poll.createdAt.toLocaleDateString();

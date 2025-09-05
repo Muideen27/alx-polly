@@ -1,6 +1,6 @@
 // Simple logger for server-side error logging
 export const logger = {
-  error: (message: string, data?: any) => {
+  error: (message: string, data?: Record<string, unknown>) => {
     if (process.env.NODE_ENV === 'development') {
       console.error(`[ERROR] ${message}`, data);
     } else {
@@ -12,13 +12,13 @@ export const logger = {
     }
   },
   
-  warn: (message: string, data?: any) => {
+  warn: (message: string, data?: Record<string, unknown>) => {
     if (process.env.NODE_ENV === 'development') {
       console.warn(`[WARN] ${message}`, data);
     }
   },
   
-  info: (message: string, data?: any) => {
+  info: (message: string, data?: Record<string, unknown>) => {
     if (process.env.NODE_ENV === 'development') {
       console.info(`[INFO] ${message}`, data);
     }

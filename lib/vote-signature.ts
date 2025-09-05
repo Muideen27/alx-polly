@@ -8,7 +8,7 @@ if (!VOTE_SIGNING_SECRET) {
 
 export function generateVoteSignature(pollId: string, userAgent: string, ip?: string): string {
   const data = `${pollId}:${userAgent}${ip ? `:${ip}` : ''}`;
-  return createHmac('sha256', VOTE_SIGNING_SECRET)
+  return createHmac('sha256', VOTE_SIGNING_SECRET as string)
     .update(data)
     .digest('hex');
 }

@@ -9,10 +9,7 @@ import { rateLimitCheck } from "@/lib/rate-limiter";
 /**
  * Validation schemas for poll data integrity and security.
  * 
- * Enforces business rules to prevent invalid data and potential attacks:
- * - Question length limits prevent spam and ensure meaningful content
- * - Option constraints ensure usability and prevent abuse
- * - Case-insensitive uniqueness prevents duplicate options
+ * Enforces business rules to prevent invalid data and potential attacks.
  */
 // Question validation: 10-500 characters, trimmed
 const pollQuestionSchema = z
@@ -57,23 +54,13 @@ const updatePollSchema = z.object({
 /**
  * Creates a new poll with validated data and ownership enforcement.
  * 
- * Validates input data, enforces rate limiting, and creates a poll
- * owned by the authenticated user. Ensures data integrity through
- * Zod validation and prevents abuse through rate limiting.
- * 
  * @param formData - Form data containing question and options
- * @returns Promise resolving to success/error result
+ * @returns Promise resolving to { ok: boolean; error?: string }
  * 
  * @sideEffects
  * - Inserts new poll record into 'polls' table
  * - Sets user_id for ownership enforcement
  * - Revalidates /dashboard/polls cache
- * 
- * @failureModes
- * - Rate limit exceeded: Returns rate limit error
- * - Validation failed: Returns specific validation error
- * - Authentication required: Returns login error
- * - Database error: Returns friendly error message
  */
 export async function createPoll(formData: FormData) {
   // Rate limiting: prevent abuse of poll creation
@@ -91,7 +78,7 @@ export async function createPoll(formData: FormData) {
   // Validate input with Zod schema for data integrity
   const validationResult = createPollSchema.safeParse({ question, options });
   if (!validationResult.success) {
-    const firstError = validationResult.error.errors[0];
+    const firstError = validationResult.error.issues[0];
     return { ok: false, error: firstError.message };
   }
 
@@ -130,20 +117,10 @@ export async function createPoll(formData: FormData) {
 /**
  * Retrieves all polls owned by the authenticated user.
  * 
- * Fetches polls from the database with ownership filtering to ensure
- * users only see their own polls. Orders by creation date for
- * chronological display.
- * 
- * @returns Promise resolving to polls array and error status
+ * @returns Promise resolving to { polls: Poll[]; error: string | null }
  * 
  * @sideEffects
  * - Queries 'polls' table with user_id filter
- * - No cache revalidation (read-only operation)
- * 
- * @failureModes
- * - Not authenticated: Returns empty array with error
- * - Database error: Returns empty array with friendly error
- * - No polls found: Returns empty array (success)
  */
 export async function getUserPolls() {
   const supabase = await createClient();
@@ -166,21 +143,11 @@ export async function getUserPolls() {
 /**
  * Retrieves a specific poll by ID with ownership verification.
  * 
- * Fetches a poll from the database only if it belongs to the
- * authenticated user. Prevents unauthorized access to other users' polls.
- * 
  * @param id - Poll ID to retrieve
- * @returns Promise resolving to poll data and error status
+ * @returns Promise resolving to { poll: Poll | null; error: string | null }
  * 
  * @sideEffects
  * - Queries 'polls' table with ID and user_id filters
- * - No cache revalidation (read-only operation)
- * 
- * @failureModes
- * - Not authenticated: Returns null with auth error
- * - Poll not found: Returns null with not found error
- * - Not owned by user: Returns null with not found error (security)
- * - Database error: Returns null with friendly error
  */
 export async function getPollById(id: string) {
   const supabase = await createClient();
@@ -210,35 +177,15 @@ export async function getPollById(id: string) {
 /**
  * Submits a vote for a poll with deduplication and validation.
  * 
- * Validates poll existence, option index, and enforces vote deduplication
- * using HMAC signatures. Prevents multiple votes from the same user/device
- * through unique constraint enforcement. This is the core voting action
- * used by the public voting interface.
- * 
  * @param pollId - ID of the poll to vote on
  * @param optionIndex - Index of the selected option (0-based, matches poll.options array)
  * @param voteSignature - HMAC signature for vote deduplication (from httpOnly cookie)
- * @returns Promise resolving to success/error result
+ * @returns Promise resolving to { ok: boolean; error?: string }
  * 
  * @sideEffects
  * - Inserts vote record into 'votes' table with signature
  * - Enforces UNIQUE constraint on (poll_id, signature) for deduplication
  * - Revalidates poll page cache to show updated results
- * 
- * @failureModes
- * - Rate limit exceeded: Returns rate limit error
- * - Poll not found: Returns not found error
- * - Invalid option: Returns validation error
- * - Missing signature: Returns signature required error
- * - Duplicate vote: Returns already voted error (constraint violation)
- * - Database error: Returns friendly error message
- * 
- * @securityConsiderations
- * - No authentication required (public voting)
- * - HMAC signature prevents vote tampering and duplication
- * - Server-side validation of all inputs
- * - Unique constraint prevents multiple votes per signature
- * - Rate limiting prevents vote spam
  */
 export async function submitVote(pollId: string, optionIndex: number, voteSignature?: string) {
   // Rate limiting: prevent vote spam and abuse
@@ -299,24 +246,13 @@ export async function submitVote(pollId: string, optionIndex: number, voteSignat
 /**
  * Deletes a poll with ownership verification and cascade handling.
  * 
- * Verifies poll ownership before deletion and ensures only the poll
- * owner can delete their polls. Handles cascade deletion of related
- * votes through database constraints.
- * 
  * @param id - Poll ID to delete
- * @returns Promise resolving to success/error result
+ * @returns Promise resolving to { ok: boolean; error?: string }
  * 
  * @sideEffects
  * - Deletes poll record from 'polls' table
  * - Cascade deletes related votes (via DB constraints)
  * - Revalidates /dashboard/polls cache
- * 
- * @failureModes
- * - Rate limit exceeded: Returns rate limit error
- * - Not authenticated: Returns login error
- * - Poll not found: Returns not found error
- * - Not owned by user: Returns permission denied error
- * - Database error: Returns friendly error message
  */
 export async function deletePoll(id: string) {
   // Rate limiting: prevent abuse of delete operations
@@ -364,25 +300,13 @@ export async function deletePoll(id: string) {
 /**
  * Updates a poll with ownership verification and data validation.
  * 
- * Validates input data, enforces ownership, and updates poll content.
- * Ensures only the poll owner can modify their polls and maintains
- * data integrity through validation.
- * 
  * @param pollId - ID of the poll to update
  * @param formData - Form data containing updated question and options
- * @returns Promise resolving to success/error result
+ * @returns Promise resolving to { ok: boolean; error?: string }
  * 
  * @sideEffects
  * - Updates poll record in 'polls' table
  * - Revalidates /dashboard/polls cache
- * 
- * @failureModes
- * - Rate limit exceeded: Returns rate limit error
- * - Validation failed: Returns specific validation error
- * - Not authenticated: Returns login error
- * - Poll not found: Returns not found error
- * - Not owned by user: Returns permission denied error
- * - Database error: Returns friendly error message
  */
 export async function updatePoll(pollId: string, formData: FormData) {
   // Rate limiting: prevent abuse of update operations
@@ -400,7 +324,7 @@ export async function updatePoll(pollId: string, formData: FormData) {
   // Validate input with Zod schema for data integrity
   const validationResult = updatePollSchema.safeParse({ question, options });
   if (!validationResult.success) {
-    const firstError = validationResult.error.errors[0];
+    const firstError = validationResult.error.issues[0];
     return { ok: false, error: firstError.message };
   }
 

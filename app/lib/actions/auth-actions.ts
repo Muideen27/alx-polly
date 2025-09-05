@@ -5,22 +5,14 @@ import { LoginFormData, RegisterFormData } from '../types';
 import { getFriendlyErrorMessage } from '@/lib/error-handling';
 
 /**
- * Authenticates a user with email and password credentials.
- * 
- * Creates a user session by validating credentials against Supabase Auth.
- * On success, sets authentication cookies that persist across requests.
+ * Authenticate a user with email and password credentials.
  * 
  * @param data - Login credentials containing email and password
- * @returns Promise resolving to error object or null on success
+ * @returns Promise resolving to { error: string | null }
  * 
  * @sideEffects
  * - Sets authentication cookies via Supabase client
  * - Establishes user session for subsequent requests
- * 
- * @failureModes
- * - Invalid credentials: Returns user-friendly error message
- * - Network errors: Returns generic error message
- * - Account not confirmed: Returns specific confirmation error
  */
 export async function login(data: LoginFormData) {
   const supabase = await createClient();
@@ -39,25 +31,15 @@ export async function login(data: LoginFormData) {
 }
 
 /**
- * Creates a new user account with email, password, and profile data.
- * 
- * Registers a new user in Supabase Auth and stores additional profile
- * information in user metadata. May require email confirmation depending
- * on Supabase configuration.
+ * Register a new user account with email, password, and profile data.
  * 
  * @param data - Registration data containing name, email, and password
- * @returns Promise resolving to error object or null on success
+ * @returns Promise resolving to { error: string | null }
  * 
  * @sideEffects
  * - Creates new user account in Supabase Auth
  * - Stores user metadata (name) in user profile
  * - May send confirmation email if configured
- * 
- * @failureModes
- * - Email already exists: Returns specific error message
- * - Weak password: Returns password strength error
- * - Invalid email format: Returns validation error
- * - Network errors: Returns generic error message
  */
 export async function register(data: RegisterFormData) {
   const supabase = await createClient();
@@ -81,21 +63,14 @@ export async function register(data: RegisterFormData) {
 }
 
 /**
- * Terminates the current user session and clears authentication state.
+ * Terminate the current user session and clear authentication state.
  * 
- * Invalidates the user's authentication session by signing out from
- * Supabase Auth. Clears authentication cookies and session data.
- * 
- * @returns Promise resolving to error object or null on success
+ * @returns Promise resolving to { error: string | null }
  * 
  * @sideEffects
  * - Clears authentication cookies
  * - Invalidates current session
  * - Removes user authentication state
- * 
- * @failureModes
- * - Network errors: Returns generic error message
- * - Session already invalid: Returns success (idempotent)
  */
 export async function logout() {
   const supabase = await createClient();
@@ -107,22 +82,13 @@ export async function logout() {
 }
 
 /**
- * Retrieves the currently authenticated user from the server-side session.
- * 
- * Fetches user information from the server-side Supabase client using
- * the current request's authentication cookies. Returns null if no
- * authenticated user exists.
+ * Get the currently authenticated user from the server-side session.
  * 
  * @returns Promise resolving to User object or null if not authenticated
  * 
  * @sideEffects
  * - Reads authentication cookies from request
  * - Validates session with Supabase Auth
- * 
- * @failureModes
- * - No authenticated user: Returns null
- * - Invalid session: Returns null
- * - Network errors: Returns null (graceful degradation)
  */
 export async function getCurrentUser() {
   const supabase = await createClient();
@@ -131,22 +97,13 @@ export async function getCurrentUser() {
 }
 
 /**
- * Retrieves the current authentication session from the server-side context.
- * 
- * Fetches the complete session object including access tokens, refresh tokens,
- * and user information from the server-side Supabase client. Returns null
- * if no active session exists.
+ * Get the current authentication session from the server-side context.
  * 
  * @returns Promise resolving to Session object or null if not authenticated
  * 
  * @sideEffects
  * - Reads authentication cookies from request
  * - Validates session tokens with Supabase Auth
- * 
- * @failureModes
- * - No active session: Returns null
- * - Expired session: Returns null
- * - Invalid tokens: Returns null (graceful degradation)
  */
 export async function getSession() {
   const supabase = await createClient();

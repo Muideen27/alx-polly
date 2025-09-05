@@ -6,7 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export default function EditPollForm({ poll }: { poll: any }) {
+interface Poll {
+  id: string;
+  question: string;
+  options: string[];
+}
+
+export default function EditPollForm({ poll }: { poll: Poll }) {
   const [question, setQuestion] = useState(poll.question);
   const [options, setOptions] = useState<string[]>(poll.options || []);
   const [error, setError] = useState<string | null>(null);

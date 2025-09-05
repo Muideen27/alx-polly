@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/server';
 
-export default async function PollDetailPage({ params }: { params: { id: string } }) {
+export default async function PollDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
+  const { id } = await params;
   
   // Get current user
   const {
@@ -21,8 +22,8 @@ export default async function PollDetailPage({ params }: { params: { id: string 
   const { data: poll, error: pollError } = await supabase
     .from('polls')
     .select('*')
-    .eq('id', params.id)
-    .eq('owner', user.id)
+    .eq('id', id)
+    .eq('user_id', user.id)
     .single();
 
   if (pollError || !poll) {
@@ -33,7 +34,7 @@ export default async function PollDetailPage({ params }: { params: { id: string 
   const { data: votes } = await supabase
     .from('votes')
     .select('option_index')
-    .eq('poll_id', params.id);
+    .eq('poll_id', id);
 
   // Count votes per option
   const voteCounts = (poll.options as string[]).map((_, index) => 
@@ -55,7 +56,7 @@ export default async function PollDetailPage({ params }: { params: { id: string 
         </Link>
         <div className="flex space-x-2">
           <Button variant="outline" asChild>
-            <Link href={`/polls/${params.id}/edit`}>Edit Poll</Link>
+            <Link href={`/polls/${id}/edit`}>Edit Poll</Link>
           </Button>
           <Button variant="outline" className="text-red-500 hover:text-red-700">
             Delete
